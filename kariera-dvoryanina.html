@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Карьера дворянина: 1700–1800</title>
+<style>
+:root{
+  --paper:#E9ECE6; --card:#F6F7F3; --ink:#17201B; --muted:#5C665F;
+  --green:#1F4A36; --red:#A0302A; --gold:#A8822E; --line:#C9CFC6;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#121A16; --card:#1A241F; --ink:#E4E8E2; --muted:#9AA59D;
+    --green:#6FAF8C; --red:#E0716A; --gold:#D4AE5C; --line:#2E3A33;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"PT Serif",Georgia,"Times New Roman",serif;font-size:17px;line-height:1.6}
+.wrap{max-width:960px;margin:0 auto;padding:24px 16px 48px;display:grid;
+  grid-template-columns:120px 1fr;gap:28px}
+/* Табель о рангах — лестница */
+.ladder{position:sticky;top:16px;align-self:start}
+.ladder h2{font-size:14px;font-weight:normal;color:var(--muted);margin:0 0 8px;line-height:1.3}
+.rungs{display:flex;flex-direction:column;gap:3px;margin:0;padding:0;list-style:none}
+.rung{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);
+  border-left:3px solid var(--line);padding:2px 0 2px 8px;transition:all .4s}
+.rung.passed{border-color:var(--green);color:var(--ink)}
+.rung.now{border-color:var(--gold);color:var(--ink);font-weight:bold;
+  background:color-mix(in srgb,var(--gold) 18%,transparent)}
+.rung.now::after{content:"◆";color:var(--gold);margin-left:auto;padding-right:6px}
+main{min-width:0}
+.year{font-size:56px;line-height:1;color:var(--green);margin:0;letter-spacing:-1px}
+h1{font-size:30px;line-height:1.2;margin:4px 0 16px;font-weight:bold}
+.scene{max-width:62ch;margin:0 0 18px}
+.q{font-weight:bold;max-width:62ch;margin:0 0 14px}
+.hint{color:var(--muted);font-size:15px;margin:-8px 0 14px}
+.opts{display:flex;flex-direction:column;gap:8px;max-width:62ch}
+.opt{text-align:left;font:inherit;color:var(--ink);background:var(--card);
+  border:1px solid var(--line);border-radius:4px;padding:10px 14px;cursor:pointer}
+.opt:hover{border-color:var(--green)}
+.opt.sel{border-color:var(--green);box-shadow:inset 4px 0 0 var(--green)}
+.opt .num{display:inline-block;min-width:22px;color:var(--gold);font-weight:bold}
+.opt:disabled{opacity:.45;cursor:default}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.seq{min-height:44px;border:1px dashed var(--line);border-radius:4px;padding:8px 12px;
+  margin:0 0 10px;max-width:62ch;color:var(--muted);font-size:15px}
+.seq ol{margin:0;padding-left:22px;color:var(--ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.btn{font:inherit;font-weight:bold;border:none;border-radius:4px;padding:10px 20px;cursor:pointer;
+  background:var(--green);color:var(--paper)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:normal}
+.btn:disabled{opacity:.4;cursor:default}
+.verdict{max-width:62ch;margin-top:20px;padding:14px 16px;border-radius:4px;background:var(--card)}
+.verdict.ok{border-left:5px solid var(--green)}
+.verdict.exile{border-left:5px solid var(--red)}
+.verdict h3{margin:0 0 6px;font-size:19px}
+.verdict.exile h3{color:var(--red)}
+.verdict.ok h3{color:var(--green)}
+.verdict p{margin:0}
+textarea,input[type=text]{width:100%;max-width:62ch;font:inherit;color:var(--ink);background:var(--card);
+  border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+textarea{min-height:160px;resize:vertical}
+.model{max-width:62ch;background:var(--card);border-radius:4px;padding:12px 16px;margin-top:16px}
+.model ul{margin:6px 0 0;padding-left:20px}
+.result{white-space:pre-wrap;font-size:15px}
+.small{font-size:15px;color:var(--muted)}
+@media (max-width:640px){
+  .wrap{grid-template-columns:1fr;gap:12px;padding-top:12px}
+  .ladder{position:static}
+  .rungs{flex-direction:row;overflow-x:auto;gap:2px}
+  .rung{border-left:none;border-bottom:3px solid var(--line);padding:2px 6px;font-size:13px;flex:0 0 auto}
+  .rung span.cls{display:none}
+  .rung.now::after{content:""}
+  .year{font-size:44px}
+  h1{font-size:24px}
+}
+@media (prefers-reduced-motion: reduce){.rung{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="ladder" aria-label="Ваш чин по Табели о рангах">
+    <h2>Табель о рангах</h2>
+    <ul class="rungs" id="rungs"></ul>
+  </aside>
+  <main id="app" aria-live="polite"></main>
+</div>
+
+<script>
+const PATH = [14,13,12,10,9,8,7,6,4,2,1]; // чин после N зачтённых этапов
+
+const STAGES = [
+ {year:"1701", title:"Отца отправляют учиться",
+  scene:"Царь требует, чтобы дворянские недоросли учились, а не сидели в поместьях. Молодой основатель нашего рода едет в Москву.",
+  q:"Какое учебное заведение, основанное при Петре I, могло его принять?",
+  type:"single",
+  options:["Смольный институт благородных девиц","Школа математических и навигацких наук","Московский университет"],
+  correct:1,
+  ok:"Навигацкая школа открыта в 1701 году в Москве и готовила моряков, инженеров, артиллеристов.",
+  explain:"Смольный институт основан в 1764 году при Екатерине II и предназначался для девиц. Московский университет — 1755 год, Елизавета Петровна, проект Ломоносова и Шувалова. При Петре в 1701 году открыта Школа математических и навигацких наук."},
+ {year:"1722", title:"Табель о рангах",
+  scene:"Основатель рода окончил школу и поступил на службу. Как раз выходит закон, по которому теперь строится вся карьера.",
+  q:"Какой принцип продвижения по службе закрепила Табель о рангах?",
+  type:"single",
+  options:["Знатность рода и заслуги предков","Личная выслуга и способности","Покупка чина за деньги"],
+  correct:1,
+  ok:"Верно. Даже недворянин, дослужившийся в армии до 14-го класса, получал потомственное дворянство.",
+  explain:"Знатность рода как основа назначений — это местничество, отменённое ещё в 1682 году. Табель о рангах 1722 года ставила во главу личную выслугу: чин получали за службу, а не за происхождение."},
+ {year:"1730", title:"Затейка верховников",
+  scene:"Его сын служит в гвардии. Москва гудит: новой императрице Анне Иоанновне поставили условия, ограничивающие её власть.",
+  q:"Кто составил эти условия (Кондиции)?",
+  type:"single",
+  options:["Правительствующий сенат","Кабинет министров","Верховный тайный совет"],
+  correct:2,
+  ok:"Кондиции составили «верховники» во главе с Д. М. Голицыным. Анна разорвала их при поддержке гвардии и шляхетства.",
+  explain:"Верховный тайный совет создан в 1726 году при Екатерине I, и именно он (Д. М. Голицын, Долгоруковы) составил Кондиции. Кабинет министров — ловушка: его учредила сама Анна Иоанновна в 1731 году, уже после разрыва Кондиций."},
+ {year:"1736", title:"Служба становится легче",
+  scene:"Дворяне просят облегчить бессрочную службу. Императрица идёт навстречу.",
+  q:"Какой срок службы установил манифест 1736 года?",
+  type:"single",
+  options:["15 лет","25 лет","Пожизненная служба сохранилась"],
+  correct:1,
+  ok:"Срок ограничен 25 годами, а один из сыновей мог остаться дома управлять имением.",
+  explain:"Манифест Анны Иоанновны 1736 года ограничил службу дворян 25 годами и разрешил одному сыну в семье не служить, чтобы вести хозяйство. Полностью обязательную службу отменит только Пётр III в 1762 году."},
+ {year:"1741", title:"Ночь переворота",
+  scene:"Ноябрьская ночь. Дочь Петра Великого входит в казармы и спрашивает гвардейцев, знают ли они, чья она дочь.",
+  q:"Какое подразделение возвело на престол Елизавету Петровну?",
+  type:"single",
+  options:["Гренадерская рота Преображенского полка","Конная гвардия","Измайловский полк"],
+  correct:0,
+  ok:"Гренадеры-преображенцы стали Лейб-кампанией и получили щедрые награды.",
+  explain:"Переворот 1741 года совершила гренадерская рота Преображенского полка, позже превращённая в Лейб-кампанию. Измайловский полк, напротив, был создан при Анне Иоанновне в 1730 году."},
+ {year:"1762", title:"Можно уйти в отставку",
+  scene:"Внук основателя рода устал от службы. Вдруг выходит указ: служить теперь не обязательно.",
+  q:"Кто издал Манифест о вольности дворянства?",
+  type:"single",
+  options:["Елизавета Петровна","Екатерина II","Пётр III"],
+  correct:2,
+  ok:"Манифест подписан Петром III в феврале 1762 года.",
+  explain:"Манифест о вольности дворянства издал Пётр III в 1762 году, за несколько месяцев до своего свержения. Екатерина II позже подтвердила эту свободу в Жалованной грамоте дворянству 1785 года, отсюда частая путаница."},
+ {year:"1773", title:"Пожар на Волге",
+  scene:"Поместье семьи стоит в Поволжье. Из степи приходят слухи о «чудесно спасшемся Петре III».",
+  q:"Расположите события восстания Пугачёва в правильном порядке.",
+  hint:"Нажимайте на события по порядку. Ошиблись — нажмите «Сбросить».",
+  type:"order",
+  options:["Выступление яицких казаков, начало восстания","Осада Оренбурга","Взятие и сожжение Казани","Поражение под Царицыным у Солениковой ватаги","Казнь Пугачёва в Москве"],
+  ok:"Верно: 1773 — начало и осада Оренбурга, 1774 — Казань и разгром, январь 1775 — казнь.",
+  explain:"Порядок такой: сентябрь 1773 — выступление на Яике; октябрь 1773 – март 1774 — осада Оренбурга; июль 1774 — Казань; август 1774 — поражение под Царицыным; январь 1775 — казнь на Болотной площади."},
+ {year:"1785", title:"Дворянское собрание",
+  scene:"Правнук основателя рода едет на губернское дворянское собрание. Его права теперь записаны в отдельном документе.",
+  q:"Выберите четыре права, которые дала Жалованная грамота дворянству.",
+  type:"multi", need:4,
+  options:["Освобождение от телесных наказаний","Обязательная служба не менее 25 лет","Право созывать уездные и губернские собрания","Наследование имения только одним сыном","Право быть судимым только судом равных","Назначение губернаторов дворянскими собраниями","Подтверждение свободы от обязательной службы"],
+  correct:[0,2,4,6],
+  ok:"Грамота 1785 года закрепила дворянство как привилегированное, самоуправляющееся сословие.",
+  explain:"Верные ответы: освобождение от телесных наказаний, право на сословные собрания, право на суд равных, подтверждение свободы от обязательной службы (впервые дарованной Петром III в 1762 году). Срок службы 25 лет — это 1736 год. Наследование одним сыном — указ о единонаследии 1714 года, отменённый в 1731-м. Губернатора назначала верховная власть, а не дворяне."},
+ {year:"1797", title:"Новый император",
+  scene:"Павел I коронуется и в тот же день издаёт манифест о крестьянах.",
+  q:"Что предусматривал Манифест о трёхдневной барщине?",
+  type:"single",
+  options:["Отмену крепостного права","Рекомендацию ограничить барщину тремя днями и запрет работ в воскресенье","Перевод всех крепостных крестьян на оброк"],
+  correct:1,
+  ok:"Первая попытка государства законодательно ограничить барщину.",
+  explain:"Манифест 1797 года запрещал принуждать крестьян к работе в воскресенье и рекомендовал барщину в три дня. Крепостное право отменено только в 1861 году, а обязательного перевода крестьян на оброк не было вовсе."},
+ {year:"1800", title:"Мемуары",
+  scene:"Век заканчивается. Старый род садится писать воспоминания.",
+  q:"Приведите два аргумента: как изменилось положение дворянства за XVIII век?",
+  hint:"Пишите как в ЕГЭ: аргумент плюс конкретный факт с датой.",
+  type:"essay",
+  model:["Обязанность службы ослабевала: 25 лет (1736), затем вольность (1762).","Сословные права закрепились юридически: Жалованная грамота 1785 года.","Дворянство стало решающей политической силой: гвардия совершала дворцовые перевороты.","Власть над крестьянами усилилась (указы о ссылке крестьян в Сибирь 1760 г., запрет жалоб 1767 г.), и лишь Павел I впервые её ограничил."]}
+];
+
+let s = {name:"", idx:-1, count:0, first:true, missed:[], pick:null, order:[], essay:""};
+const app = document.getElementById("app");
+const rungsEl = document.getElementById("rungs");
+
+function rank(){return PATH[s.count]}
+function drawLadder(){
+  const r = rank(); rungsEl.innerHTML="";
+  for(let c=1;c<=14;c++){
+    const li=document.createElement("li");
+    li.className="rung"+(c===r?" now":(c>r?" passed":""));
+    li.innerHTML=c+'<span class="cls">&nbsp;класс</span>';
+    rungsEl.appendChild(li);
+  }
+}
+function shuffle(a){const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+function esc(t){return t.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+function start(){
+  drawLadder();
+  app.innerHTML=`
+   <p class="year">1700</p>
+   <h1>Карьера дворянина</h1>
+   <p class="scene">Вы — небогатый дворянский род. Впереди целый век: Пётр, перевороты, Екатерина, Павел. Каждый этап — реальное событие XVIII века.</p>
+   <p class="scene">Верный ответ с первой попытки — повышение по Табели о рангах. Ошибка — ссылка в Берёзов: разбор, затем вторая попытка, но уже без повышения. Цель — дойти с 14-го класса до 1-го.</p>
+   <div class="row"><button class="btn" id="go">Начать службу</button></div>`;
+  document.getElementById("go").onclick=next;
+}
+
+function next(){
+  s.idx++; s.first=true; s.pick=null; s.order=[];
+  if(s.idx>=STAGES.length) return finish();
+  render();
+}
+
+function render(verdict){
+  drawLadder();
+  const st=STAGES[s.idx];
+  let body="";
+  const locked=!!verdict;
+  if(st.type==="single"||st.type==="multi"){
+    body='<div class="opts">'+st.options.map((o,i)=>{
+      const sel = st.type==="single" ? s.pick===i : (s.pick||[]).includes(i);
+      return `<button class="opt${sel?" sel":""}" data-i="${i}" ${locked?"disabled":""} aria-pressed="${sel}">${esc(o)}</button>`}).join("")+'</div>';
+  } else if(st.type==="order"){
+    if(!st._shuf) st._shuf=shuffle(st.options);
+    body=`<div class="seq">${s.order.length?"<ol>"+s.order.map(o=>"<li>"+esc(o)+"</li>").join("")+"</ol>":"Ваша последовательность появится здесь"}</div>
+     <div class="opts">`+st._shuf.map(o=>`<button class="opt" data-o="${esc(o)}" ${locked||s.order.includes(o)?"disabled":""}>${esc(o)}</button>`).join("")+"</div>";
+  } else if(st.type==="essay"){
+    body=`<label class="small" for="es">Ваш ответ</label><textarea id="es" ${locked?"disabled":""}>${esc(s.essay)}</textarea>`;
+  }
+  let btns="";
+  if(!verdict){
+    if(st.type==="essay") btns=`<button class="btn" id="chk">Сравнить с эталоном</button>`;
+    else btns=`<button class="btn" id="chk" ${ready(st)?"":"disabled"}>Проверить</button>`+(st.type==="order"?` <button class="btn ghost" id="rst">Сбросить</button>`:"");
+  }
+  app.innerHTML=`<p class="year">${st.year}</p><h1>${st.title}</h1>
+    <p class="scene">${st.scene}</p><p class="q">${st.q}</p>${st.hint?`<p class="hint">${st.hint}</p>`:""}
+    ${body}<div class="row">${btns}</div>${verdict||""}`;
+  bind(st, locked);
+}
+
+function ready(st){
+  if(st.type==="single") return s.pick!==null;
+  if(st.type==="multi") return (s.pick||[]).length===st.need;
+  if(st.type==="order") return s.order.length===st.options.length;
+  return true;
+}
+
+function bind(st, locked){
+  if(locked) return;
+  app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+    if(st.type==="single") s.pick=+b.dataset.i;
+    else if(st.type==="multi"){
+      const i=+b.dataset.i; s.pick=s.pick||[];
+      if(s.pick.includes(i)) s.pick=s.pick.filter(x=>x!==i);
+      else if(s.pick.length<st.need) s.pick.push(i);
+    } else if(st.type==="order") s.order.push(b.dataset.o);
+    render();
+  });
+  const rst=document.getElementById("rst"); if(rst) rst.onclick=()=>{s.order=[];render()};
+  const chk=document.getElementById("chk"); if(chk) chk.onclick=()=>check(st);
+}
+
+function check(st){
+  if(st.type==="essay"){
+    s.essay=document.getElementById("es").value.trim();
+    if(s.essay.length<60){alert("Напишите хотя бы два полных аргумента с фактами.");return}
+    const v=`<div class="model"><strong>Эталонные аргументы (достаточно двух):</strong><ul>${st.model.map(m=>"<li>"+m+"</li>").join("")}</ul>
+      <p class="small" style="margin-top:10px">Честно сравните: есть ли у вас два аргумента, каждый с конкретным фактом?</p></div>
+      <div class="row"><button class="btn" id="yes">Да, засчитать</button><button class="btn ghost" id="no">Нет, не засчитывать</button></div>`;
+    render(v);
+    document.getElementById("yes").onclick=()=>{s.count++;next()};
+    document.getElementById("no").onclick=()=>{s.missed.push(st.year+" — "+st.title);next()};
+    return;
+  }
+  let ok;
+  if(st.type==="single") ok = s.pick===st.correct;
+  else if(st.type==="multi") ok = s.pick.slice().sort().join()===st.correct.slice().sort().join();
+  else ok = s.order.join("|")===st.options.join("|");
+  if(ok){
+    const promoted=s.first;
+    if(promoted) s.count++;
+    render(`<div class="verdict ok"><h3>${promoted?"Повышение: теперь "+rank()+" класс":"Верно, но без повышения"}</h3><p>${st.ok}</p></div>
+      <div class="row"><button class="btn" id="nx">Дальше</button></div>`);
+    document.getElementById("nx").onclick=next;
+  } else {
+    if(s.first) s.missed.push(st.year+" — "+st.title);
+    s.first=false;
+    render(`<div class="verdict exile"><h3>Ссылка в Берёзов</h3><p>${st.explain}</p></div>
+      <div class="row"><button class="btn" id="back">Вернуться из ссылки и ответить снова</button></div>`);
+    document.getElementById("back").onclick=()=>{s.pick=null;s.order=[];render()};
+  }
+}
+
+function finish(){
+  drawLadder();
+  const r=rank();
+  const verdict = r===1 ? "Высший чин империи. Ваш род вошёл в историю."
+    : r<=6 ? "Блестящая карьера, но до вершины не хватило нескольких шагов."
+    : "Род уцелел, но при дворе о нём мало кто знает. Повторите слабые темы.";
+  const txt=`Тренажёр «Карьера дворянина: XVIII век»
+Итоговый чин: ${r} класс (зачтено ${s.count} из ${STAGES.length})
+Ошибки с первой попытки: ${s.missed.length?"\n- "+s.missed.join("\n- "):"нет"}
+Мемуары:
+${s.essay||"—"}`;
+  app.innerHTML=`<p class="year">${r} класс</p><h1>Служба окончена</h1>
+   <p class="scene">${verdict}</p>
+   ${s.missed.length?`<p class="q">Темы для повторения:</p><ul>${s.missed.map(m=>"<li>"+m+"</li>").join("")}</ul>`:""}
+   <p class="q">Отправьте этот текст куратору:</p>
+   <textarea id="res" class="result" readonly>${esc(txt)}</textarea>
+   <div class="row"><button class="btn" id="cp">Скопировать результат</button><button class="btn ghost" id="again">Пройти заново</button></div>
+   <p class="small" id="cpmsg"></p>`;
+  document.getElementById("cp").onclick=async()=>{
+    const ta=document.getElementById("res");
+    try{await navigator.clipboard.writeText(txt);document.getElementById("cpmsg").textContent="Скопировано."}
+    catch(e){ta.select();document.execCommand("copy");document.getElementById("cpmsg").textContent="Текст выделен — скопируйте его, если копирование не сработало."}
+  };
+  document.getElementById("again").onclick=()=>{s={name:s.name,idx:-1,count:0,first:true,missed:[],pick:null,order:[],essay:""};STAGES.forEach(x=>delete x._shuf);next()};
+}
+
+start();
+</script>
+</body>
+</html>
